@@ -1,11 +1,25 @@
 
 (defsystem "peaky-binders"
   :author "Héctor Galbis Sanchis"
-  :description "Named binders for Common Lisp"
+  :description "Functions that generate the code to bind lambda lists"
   :license "MIT"
-  :depends-on ("alexandria" "vault")
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
-                             (:file "peaky-binders")
-                             (:file "binders")))))
+                             (:file "conditions")
+                             (:file "runtime")
+                             (:file "parse")
+                             (:file "generate")
+                             (:file "macros"))))
+  :in-order-to ((test-op (test-op "peaky-binders/test"))))
+
+(defsystem "peaky-binders/test"
+  :depends-on ("peaky-binders")
+  :components ((:module "test"
+                :serial t
+                :components ((:file "package")
+                             (:file "harness")
+                             (:file "tests"))))
+  :perform (test-op (op c)
+             (unless (uiop:symbol-call '#:peaky-binders/test '#:run-tests)
+               (error "peaky-binders tests failed"))))
