@@ -159,3 +159,46 @@
   (signals binding-error (dbind ((a b)) '(1) (list a b)))
   (signals binding-error (dbind (a) '(1 . 2) a))
   (signals lambda-list-error (expand '(dbind (a &environment e) x))))
+
+(deftest duplicate-variables
+  (signals lambda-list-error (expand '(ordinary-bind (a a) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (a &optional a) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (a &optional (b 1 a)) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (&optional (a 1 ap) &key (b 2 ap)) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (a &rest a) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (a &key a) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (a &key ((:k a))) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (a &aux a) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (&aux a a) x)))
+  (signals lambda-list-error (expand '(dbind (&whole w w) x)))
+  (signals lambda-list-error (expand '(dbind (a . a) x)))
+  (signals lambda-list-error (expand '(dbind (a (b a)) x)))
+  (signals lambda-list-error (expand '(dbind ((a b) &key ((:k (b c)))) x)))
+  (signals lambda-list-error (expand '(dbind (a (&whole a b)) x)))
+  (signals lambda-list-error (expand '(dbind ((a) &rest (b a)) x)))
+  (signals lambda-list-error (expand '(macro-bind ((&whole w &environment w)) x)))
+  (signals lambda-list-error (expand '(macro-bind ((a &environment a)) x)))
+  (signals lambda-list-error (expand '(macro-bind (((a b) &body (c b))) x))))
+
+(deftest duplicate-variables-error-lambda-list
+  (handler-case (progn (expand '(dbind (a (b a)) x))
+                       (report-failure "no error"))
+    (lambda-list-error (e)
+      (is '(a (b a)) (lambda-list-error-lambda-list e)))))
+
+(deftest distinct-variables-accepted
+  (is '(1 2 t 3 nil 4)
+      (ordinary-bind (a &optional (b 0 bp) &key (c 0 cp) &aux (d 4)) '(1 2 :c 3)
+        (list a b bp c (not cp) d)))
+  (is '(1 2 3) (dbind (a (b c)) '(1 (2 3)) (list a b c))))
+
+(deftest duplicate-keywords
+  (signals lambda-list-error (expand '(ordinary-bind (&key a ((:a b))) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (&key ((:k a)) ((:k b))) x)))
+  (signals lambda-list-error (expand '(ordinary-bind (&key ((k a)) ((k b))) x)))
+  (signals lambda-list-error (expand '(dbind ((&key a ((:a b)))) x)))
+  (signals lambda-list-error (expand '(macro-bind ((&key a ((:a b)))) x))))
+
+(deftest duplicate-keywords-in-different-levels-accepted
+  (is '(1 2) (dbind ((&key a) &key ((:a b))) '((:a 1) :a 2) (list a b)))
+  (is '(1 2) (ordinary-bind (&key ((:a x)) ((a y))) '(:a 1 a 2) (list x y))))

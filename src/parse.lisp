@@ -31,7 +31,7 @@
 
 (defun parse-pattern (x kind lambda-list)
   (if (and (consp x) (not (eq kind :ordinary)))
-      (parse-lambda-list x :destructuring)
+      (parse-lambda-list x :destructuring t)
       (check-variable x lambda-list)))
 
 (defun parse-optional (spec kind lambda-list)
@@ -91,7 +91,48 @@
 (defparameter *section-ranks*
   '((&optional . 1) (&rest . 2) (&body . 2) (&key . 3) (&allow-other-keys . 4) (&aux . 5)))
 
-(defun parse-lambda-list (lambda-list kind)
+(defun pattern-variables (pattern)
+  (if (pll-p pattern)
+      (pll-variables pattern)
+      (list pattern)))
+
+(defun pll-variables (pll)
+  (append (and (pll-whole pll) (list (pll-whole pll)))
+          (and (pll-environmentp pll) (list (pll-environment pll)))
+          (mapcan #'pattern-variables (pll-required pll))
+          (mapcan (lambda (spec)
+                    (destructuring-bind (pattern init svar) spec
+                      (declare (ignore init))
+                      (append (pattern-variables pattern)
+                              (and svar (list svar)))))
+                  (pll-optional pll))
+          (and (pll-rest pll) (pattern-variables (pll-rest pll)))
+          (mapcan (lambda (spec)
+                    (destructuring-bind (keyword pattern init svar) spec
+                      (declare (ignore keyword init))
+                      (append (pattern-variables pattern)
+                              (and svar (list svar)))))
+                  (pll-keys pll))
+          (mapcar #'first (pll-aux pll))))
+
+(defun find-duplicate (list)
+  (loop for (item . rest) on list
+        when (member item rest)
+          return (values item t)))
+
+(defun check-duplicate-keywords (pll)
+  (multiple-value-bind (keyword foundp) (find-duplicate (mapcar #'first (pll-keys pll)))
+    (when foundp
+      (lambda-list-error (pll-source pll)
+                         "The keyword ~s appears more than once in &key." keyword))))
+
+(defun check-duplicate-variables (pll)
+  (multiple-value-bind (variable foundp) (find-duplicate (pll-variables pll))
+    (when foundp
+      (lambda-list-error (pll-source pll)
+                         "The variable ~s appears more than once." variable))))
+
+(defun parse-lambda-list (lambda-list kind &optional nested)
   (unless (listp lambda-list)
     (lambda-list-error lambda-list "A lambda list must be a list."))
   (let ((pll (make-pll lambda-list))
@@ -173,4 +214,7 @@
           (pll-optional pll) (nreverse (pll-optional pll))
           (pll-keys pll) (nreverse (pll-keys pll))
           (pll-aux pll) (nreverse (pll-aux pll)))
+    (check-duplicate-keywords pll)
+    (unless nested
+      (check-duplicate-variables pll))
     pll))
