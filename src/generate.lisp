@@ -64,12 +64,36 @@
        ,@body)))
 
 (defun ordinary-bind-form (lambda-list arguments body)
+  "Return a form that evaluates the form ARGUMENTS, which must produce a list,
+binds the variables of the ordinary LAMBDA-LIST as if the list were the
+arguments of a function call and evaluates the forms in the list BODY.
+Declarations at the beginning of BODY affect the variables of LAMBDA-LIST.
+
+A LAMBDA-LIST-ERROR is signaled if LAMBDA-LIST is malformed. The returned form
+signals a BINDING-ERROR if the list does not match LAMBDA-LIST."
   (make-bind-form (parse-lambda-list lambda-list :ordinary) arguments body))
 
 (defun destructuring-bind-form (lambda-list expression body)
+  "Return a form that evaluates the form EXPRESSION, destructures its value
+with the destructuring LAMBDA-LIST and evaluates the forms in the list BODY.
+Declarations at the beginning of BODY affect the variables of LAMBDA-LIST.
+
+A LAMBDA-LIST-ERROR is signaled if LAMBDA-LIST is malformed. The returned form
+signals a BINDING-ERROR if the value does not match LAMBDA-LIST."
   (make-bind-form (parse-lambda-list lambda-list :destructuring) expression body))
 
 (defun macro-bind-form (lambda-list arguments body &key name environment)
+  "Return a form that evaluates the form ARGUMENTS, which must produce the
+list of arguments of a macro call (without the operator), binds the variables
+of the macro LAMBDA-LIST and evaluates the forms in the list BODY.
+Declarations at the beginning of BODY affect the variables of LAMBDA-LIST.
+
+NAME and ENVIRONMENT are forms inserted into the returned form. The &whole
+variable is bound to (NAME . arguments) and the &environment variable is bound
+to the value of ENVIRONMENT. Both default to NIL.
+
+A LAMBDA-LIST-ERROR is signaled if LAMBDA-LIST is malformed. The returned form
+signals a BINDING-ERROR if the arguments do not match LAMBDA-LIST."
   (make-bind-form (parse-lambda-list lambda-list :macro) arguments body
                   :whole (lambda (list) `(cons ,name ,list))
                   :environment environment))

@@ -23,3 +23,11 @@
   :perform (test-op (op c)
              (unless (uiop:symbol-call '#:peaky-binders/test '#:run-tests)
                (error "peaky-binders tests failed"))))
+
+;; (defsystem "peaky-binders/docs"
+;;   :defsystem-depends-on ("adp-github")
+;;   :class :adp-github
+;;   :depends-on ("peaky-binders")
+;;   :components ((:module "scribble"
+;;                 :components ((:file "package")
+;;                              (:scribble "README")))))
